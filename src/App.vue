@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import VideoPlayer from '@/components/videoPlayer/VideoPlayer.vue';
+import VideoPlayer from '@/views/videoPlayer/index.vue';
 </script>
 
 <template>
-  <video-player style="width:100%;height: 100%;"></video-player>
+  <video-player></video-player>
 </template>
 
 <style scoped>

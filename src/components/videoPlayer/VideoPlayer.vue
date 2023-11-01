@@ -1,30 +1,29 @@
 <template>
   <div class="video-player-container">
-    <video ref="videoPlayerRef" class="video-js vjs-default-skin video-player"></video>
-    <div>
-      <button @click="play">播放</button>
-      <button @click="pause">暂停</button>
-      <button @click="setVolume(0)">音量0</button>
-      <button @click="setVolume(1)">音量1</button>
-      <button @click="screenshot">截图</button>
-      <button @click="recordingHandler">录制</button>
-    </div>
+    <video
+      ref="videoPlayerRef"
+      class="video-js vjs-default-skin video-player"></video>
   </div>
 </template>
 
 <script setup lang="ts">
-import videojs from 'video.js';
-import Player from 'video.js/dist/types/player';
-import 'video.js/dist/video-js.css';
-import fixWebmDuration from 'webm-duration-fix';
 import {
   onMounted,
   ref,
   withDefaults,
   defineProps,
   onBeforeUnmount,
+  reactive,
+inject,
 } from 'vue';
+import { usePlayersStore } from '@/stores/players';
+import type { PlayerState } from '@/stores/players';
+import videojs from 'video.js';
+import Player from 'video.js/dist/types/player';
+import 'video.js/dist/video-js.css';
+import fixWebmDuration from 'webm-duration-fix';
 import { downloadFile } from '@/utils';
+import { PlayerKey } from '@/config/globalProvideKeys';
 
 type VideoPropsType = {
   url?: string;
@@ -35,8 +34,20 @@ const props = withDefaults(defineProps<VideoPropsType>(), {
   defaultMuted: true,
 });
 
-const mimeType = 'video/mp4';
+const uid = inject(PlayerKey);
 
+const playerStore = usePlayersStore();
+const playerState: PlayerState = reactive({
+  play: false,
+  volume: 1,
+  inRecording: false,
+  currentTime: 0,
+  duration: 0,
+});
+
+// 视频文件类型
+const mimeType = 'video/mp4';
+// 视频播放器ref
 const videoPlayerRef = ref<HTMLVideoElement>();
 let player: Player | null = null; // 此处不可使用ref,否则会导致无法播放
 let playUrl = ''; // 当前播放的url
@@ -44,7 +55,6 @@ let playUrl = ''; // 当前播放的url
 // 录像相关
 let mediaRecorder: MediaRecorder;
 let recordedChunks: Blob[] = [];
-const inRecording = ref(false);
 let recordingResolve: null | ((value?: unknown) => void) = null;
 
 /**
@@ -59,12 +69,6 @@ const play = () => {
 const pause = () => {
   player?.pause();
 };
-/**
- * 获取播放状态
- */
-const getPlayStatus = () => {
-  return !player?.paused();
-};
 
 /**
  * 设置音量
@@ -75,11 +79,11 @@ const setVolume = (volume: number) => {
 };
 
 /**
- * 获取音量
+ * 设置播放进度
  */
-const getVolume = () => {
-  return player?.volume();
-};
+const setCurrentTime = (current:number) => {
+  player?.currentTime(current);
+}
 
 /**
  * 截图
@@ -98,25 +102,19 @@ const screenshot = () => {
 
 const startRecording = () => {
   if (mediaRecorder) {
-    const volume = player?.volume();
-    const muted = player?.muted();
-    if (!volume || muted) {
-      player?.muted(false);
-      player?.volume(0.5);
-    }
     recordedChunks = [];
     mediaRecorder?.start(10);
-    inRecording.value = true;
+    playerState.inRecording = true;
   }
 };
 const endRecording = () => {
   if (mediaRecorder) {
     mediaRecorder.stop();
-    inRecording.value = false;
+    playerState.inRecording = false;
   }
 };
-const recordingHandler = () => {
-  if (inRecording.value) {
+const videotaping = () => {
+  if (playerState.inRecording) {
     endRecording();
     recordingResolve && recordingResolve();
   } else {
@@ -158,7 +156,7 @@ const downloadRecording = () => {
  */
 const initRecordingMedia = () => {
     mediaRecorder = new MediaRecorder(
-      videoPlayerRef.value?.captureStream(),
+      (videoPlayerRef.value as any)?.captureStream(),
     );
 
     mediaRecorder.addEventListener('dataavailable', event => {
@@ -184,14 +182,35 @@ const playVideo = (url?: string) => {
   player?.play();
 };
 
+const addPlayerListener = () => {
+  player?.on('play', ()=> playerState.play = true);
+  player?.on('pause', ()=> playerState.play = false);
+  player?.on('volumechange', ()=> playerState.volume = player!.volume() || 0);
+  player?.on('timeupdate', ()=> playerState.currentTime = player!.currentTime() || 0);
+  player?.on('loadedmetadata', () => {
+    playerState.duration = player?.duration() || 0;
+  })
+}
+
 onMounted(() => {
   player = videojs(videoPlayerRef.value!, {
     autoplay: true,
+    
   });
+  addPlayerListener();
   // 播放视频
   playVideo();
   // 初始化录像媒体
   initRecordingMedia();
+  // 加入store
+  playerStore.addPlayer(uid, playerState, {
+    play,
+    pause,
+    setVolume,
+    screenshot,
+    videotaping,
+    setCurrentTime,
+  });
 });
 onBeforeUnmount(() => {
   if (player) {

@@ -2,3 +2,10 @@ body, #app {
   width: 100vw;
   height: 100vh;
 }
+.controller {
+  cursor: pointer;
+  font-size: 18px;
+  .controller-icon.hover {
+    display: none;
+  }
+}

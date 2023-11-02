@@ -4,4 +4,4 @@ import { PlayerKey } from '@/config/globalProvideKeys';
 export const getCurrentPlayer = () => {
   const uid = inject(PlayerKey);
   return usePlayersStore().getPlayer(uid);
-}
+};

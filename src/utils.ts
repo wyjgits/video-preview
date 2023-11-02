@@ -1,4 +1,4 @@
-export const downloadFile = (file: string) =>{
+export const downloadFile = (file: string) => {
   const link = document.createElement('a');
   link.href = file;
   link.download = 'screenshot.png';
@@ -6,4 +6,4 @@ export const downloadFile = (file: string) =>{
   document.body.appendChild(link);
   link.dispatchEvent(new MouseEvent('click'));
   document.body.removeChild(link);
-}
+};

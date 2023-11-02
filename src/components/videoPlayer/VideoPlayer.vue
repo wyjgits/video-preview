@@ -14,7 +14,7 @@ import {
   defineProps,
   onBeforeUnmount,
   reactive,
-inject,
+  inject,
 } from 'vue';
 import { usePlayersStore } from '@/stores/players';
 import type { PlayerState } from '@/stores/players';
@@ -28,10 +28,12 @@ import { PlayerKey } from '@/config/globalProvideKeys';
 type VideoPropsType = {
   url?: string;
   defaultMuted?: boolean;
+  autoPlay?: boolean;
 };
 const props = withDefaults(defineProps<VideoPropsType>(), {
-  url: 'https://d2zihajmogu5jn.cloudfront.net/bipbop-advanced/bipbop_16x9_variant.m3u8',
+  url: 'https://d2zihajmogu5jn.cloudfront.net/bipbop-advanced/bipbop_16x9_variant.m3u8', // https://d2zihajmogu5jn.cloudfront.net/sintel/master.m3u8
   defaultMuted: true,
+  autoPlay: false,
 });
 
 const uid = inject(PlayerKey);
@@ -81,9 +83,9 @@ const setVolume = (volume: number) => {
 /**
  * 设置播放进度
  */
-const setCurrentTime = (current:number) => {
+const setCurrentTime = (current: number) => {
   player?.currentTime(current);
-}
+};
 
 /**
  * 截图
@@ -136,7 +138,7 @@ const videotaping = () => {
 const downloadRecording = () => {
   if (recordedChunks.length) {
     var blob = new Blob(recordedChunks, {
-      type:mimeType,
+      type: mimeType,
     });
     fixWebmDuration(blob).then(blob => {
       var url = URL.createObjectURL(blob);
@@ -155,18 +157,18 @@ const downloadRecording = () => {
  * 初始化录像媒体
  */
 const initRecordingMedia = () => {
-    mediaRecorder = new MediaRecorder(
-      (videoPlayerRef.value as any)?.captureStream(),
-    );
+  mediaRecorder = new MediaRecorder(
+    (videoPlayerRef.value as any)?.captureStream()
+  );
 
-    mediaRecorder.addEventListener('dataavailable', event => {
-      if (event.data.size > 0) {
-        recordedChunks.push(event.data);
-      }
-    });
-    mediaRecorder.addEventListener('stop', () => {
-      downloadRecording();
-    });
+  mediaRecorder.addEventListener('dataavailable', event => {
+    if (event.data.size > 0) {
+      recordedChunks.push(event.data);
+    }
+  });
+  mediaRecorder.addEventListener('stop', () => {
+    downloadRecording();
+  });
 };
 
 /**
@@ -183,23 +185,30 @@ const playVideo = (url?: string) => {
 };
 
 const addPlayerListener = () => {
-  player?.on('play', ()=> playerState.play = true);
-  player?.on('pause', ()=> playerState.play = false);
-  player?.on('volumechange', ()=> playerState.volume = player!.volume() || 0);
-  player?.on('timeupdate', ()=> playerState.currentTime = player!.currentTime() || 0);
+  player?.on('play', () => (playerState.play = true));
+  player?.on('pause', () => (playerState.play = false));
+  player?.on(
+    'volumechange',
+    () => (playerState.volume = player!.volume() || 0)
+  );
+  player?.on(
+    'timeupdate',
+    () => (playerState.currentTime = player!.currentTime() || 0)
+  );
   player?.on('loadedmetadata', () => {
     playerState.duration = player?.duration() || 0;
-  })
-}
+  });
+};
 
 onMounted(() => {
   player = videojs(videoPlayerRef.value!, {
-    autoplay: true,
-    
+    autoplay: props.autoPlay,
+  });
+  player?.src({
+    src: props.url,
+    type: 'application/x-mpegURL',
   });
   addPlayerListener();
-  // 播放视频
-  playVideo();
   // 初始化录像媒体
   initRecordingMedia();
   // 加入store
@@ -216,6 +225,10 @@ onBeforeUnmount(() => {
   if (player) {
     player.dispose(); // 销毁播放器
   }
+});
+
+defineExpose({
+  playVideo,
 });
 </script>
 

@@ -25,7 +25,7 @@ type Player = {
 };
 const EmptyFn = () => {};
 // 未生成实例时的默认状态
-const defaultPlayer:Pick<Player, 'state' | 'handlers'> = Object.freeze({
+const defaultPlayer: Pick<Player, 'state' | 'handlers'> = Object.freeze({
   state: {
     play: false,
     volume: 1,
